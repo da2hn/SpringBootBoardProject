@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.board.mapper.AttachMapper">
+    <insert id="insert">
+        INSERT INTO TBL_ATTACH
+        (FILE_NAME, ORIGINAL_FILE_NAME, UPLOAD_DIRECTORY, IMAGE, BOARD_NUMBER)
+        VALUES(#{fileName}, #{originalFileName}, #{uploadDirectory}, #{image}, #{boardVO.boardNumber})
+    </insert>
+
+    <select id="select" resultType="attachVO">
+        SELECT FILE_NAME, ORIGINAL_FILE_NAME, UPLOAD_DIRECTORY, IMAGE
+        FROM TBL_ATTACH
+        WHERE BOARD_NUMBER = #{boardNumber}
+    </select>
+
+    <delete id="delete">
+        DELETE FROM TBL_ATTACH
+        WHERE BOARD_NUMBER = #{boardNumber}
+    </delete>
+
+    <select id="getOldFiles" resultType="attachVO">
+        SELECT FILE_NAME, ORIGINAL_FILE_NAME, UPLOAD_DIRECTORY, IMAGE
+        FROM TBL_ATTACH WHERE UPLOAD_DIRECTORY = TO_CHAR(SYSDATE-1, 'YYYY/MM/DD')
+    </select>
+</mapper>

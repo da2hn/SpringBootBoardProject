@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Board</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <style>
+        .line {
+            border-bottom: 1px solid #ff8b77;
+        }
+
+        .replies li {
+            list-style: none;
+        }
+
+        h4 {
+            margin-bottom: 0;
+            margin-top: 25px;
+        }
+        .result {
+            width: 100%;
+        }
+
+        .result ul {
+            display: flex;
+            justify-content: center;
+            overflow-x: scroll;
+        }
+
+        .result ul li {
+            list-style: none;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body class="is-preload">
+<!-- Main -->
+<div id="main">
+    <div class="wrapper">
+        <div class="inner">
+
+            <!-- Elements -->
+            <header class="major">
+                <h1>Board</h1>
+                <p>게시글 상세보기</p>
+            </header>
+            <!-- Table -->
+            <h3><a id="goList" class="button small">목록 보기</a></h3>
+            <div class="content">
+                <div class="form">
+                    <form action="/board/remove" method="post">
+                        <div class="fields" th:object="${board}">
+                            <div class="field">
+                                <h4>번호</h4>
+                                <input type="text" th:field="*{boardNumber}" readonly/>
+                            </div>
+                            <div class="field">
+                                <h4>제목</h4>
+                                <input type="text" th:field="*{boardTitle}" readonly/>
+                            </div>
+                            <div class="field">
+                                <h4>내용</h4>
+                                <textarea rows="6" style="resize:none" th:field="*{boardContent}" readonly></textarea>
+                            </div>
+                            <div class="field">
+                                <h4>작성자</h4>
+                                <input type="text" th:field="*{boardWriter}" readonly/>
+                            </div>
+                            <div class="field">
+                                <h4>첨부파일</h4>
+                            </div>
+                            <div class="field">
+                                <div class="result">
+                                    <ul></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="actions special">
+                            <li>
+                                <input type="button" class="button" value="수정" onclick="goUpdate()"/>
+                                <input type="submit" class="button" value="삭제"/>
+                            </li>
+                        </ul>
+                        <a href="javascript:void(0)" class="register button primary small" style="width: 100%">댓글 등록</a>
+                        <div style="display: none" class="register-form">
+                            <div>
+                                <h4>작성자</h4>
+                                <input type="text" name="replyWriter" placeholder="Replier">
+                            </div>
+                            <div>
+                                <h4>댓글</h4>
+                                <textarea rows="6" name="replyContent" placeholder="Reply" style="resize: none"></textarea>
+                            </div>
+                            <div style="text-align: right">
+                                <a href="javascript:void(0)" class="finish button primary small">등록</a>
+                                <a href="javascript:void(0)" class="cancel button primary small">취소</a>
+                            </div>
+                        </div>
+                        <ul class="replies"></ul>
+                    </form>
+                    <div class="paging" style="text-align: center"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+<!-- Scripts -->
+<script src="/js/jquery.min.js"></script>
+<script src="/js/jquery.dropotron.min.js"></script>
+<script src="/js/browser.min.js"></script>
+<script src="/js/breakpoints.min.js"></script>
+<script src="/js/util.js"></script>
+<script src="/js/main.js"></script>
+<!--<script th:inline="javascript">let boardNumber = [[${board.boardNumber}]];</script>-->
+<script src="/js/reply.js"></script>
+<script th:inline="javascript">
+    let files = [[${board.fileList}]];
+    let boardNumber = [[${board.boardNumber}]];
+    let params = [[${criteria.listLink}]];
+    const $replyUL = $(".replies");
+    const $result = $(".result ul");
+
+    let pageNum = 1;
+
+    showList(pageNum);
+    //###########################################################################
+    //첨부파일
+    //###########################################################################
+    let str = "";
+    $.each(files, function(i, file){
+        str += "<li data-name='" + file.fileName + "' data-original='" + file.originalFileName + "' data-directory='" + file.uploadDirectory + "' data-image='" + file.image + "'>";
+        str += "<a href='/upload/download?path=" + file.uploadDirectory + "/" + file.fileName + "'>"
+        str += file.image ? "<img src='/upload/display?path=" + file.uploadDirectory + "/t_" + file.fileName + "'>"
+            : "<img src='/images/attach.png' width='100'>";
+        str += "</a><p>" + file.originalFileName + "</p>";
+        str += "</li>";
+    });
+
+    $result.append(str);
+
+
+    //###########################################################################
+    //댓글
+    //###########################################################################
+    function showList(page){
+        replyService.getList({
+            boardNumber: boardNumber,
+            page: page
+        }, function(list, total){
+            let str = "";
+            if(list == null || list.length == 0){
+                $replyUL.html("<p>등록된 댓글이 없습니다.</p>");
+                return;
+            }
+
+            $.each(list, function(i, reply){
+                str += "<li>";
+                str += "<div style='display: flex; justify-content: space-between;'>";
+                str += "<strong style='display: block;'>" + reply.replyWriter + "</strong>";
+                str += "<div class='btns'>";
+                str += "<a class='modify " + reply.replyNumber + "' style='cursor: pointer;'>수정</a>"
+                str += "&nbsp;&nbsp;<a class='remove " + reply.replyNumber + "' style='cursor: pointer;'>삭제</a>"
+                str += "<a class='modifyOk " + reply.replyNumber + "' style='display: none;cursor: pointer;'>수정완료</a>"
+                str += "&nbsp;&nbsp;<a class='cancel " + reply.replyNumber + "' style='display: none;cursor: pointer'>취소</a>"
+                str += "</div>";
+                str += "</div>";
+                str += "<div style='display: flex; justify-content: space-between;'>";
+                str += "<p class='" + reply.replyNumber + "'>" + reply.replyContent + "</p>";
+                str += "<p><strong>";
+                str += replyService.getReplyDate(reply.replyRegisterDate);
+                str += "</strong></p>";
+                str += "</div>";
+                str += "<div class='line'></div>";
+                str += "</li>";
+            });
+
+            $replyUL.html(str);
+            showReplyPage(total);
+        });
+    }
+
+    function showReplyPage(total){
+        const $paging = $("div.paging");
+        let str = "";
+        let endPage = Math.ceil(pageNum / 10.0) * 10;
+        let startPage = endPage - 9;
+        let realEnd = Math.ceil(total / 10.0);
+
+        if(endPage > realEnd){endPage = realEnd;}
+
+        let next = endPage * 10 < total;
+        let prev = startPage > 1;
+
+        if(prev){
+            str += "<a class='changePage' href='" + (startPage - 1) +"'><code>&lt;</code></a>";
+        }
+        for(let i=startPage; i<=endPage; i++){
+            str += pageNum == i ? "<code>" + i + "</code>" : "<a class='changePage' href='" + i + "'><code>" + i + "</code></a>";
+        }
+
+        if(next){
+            str += "<a class='changePage' href='" + (endPage + 1) +"'><code>&gt;</code></a>";
+
+        }
+        $paging.html(str);
+    }
+
+    $(".paging").on("click", "a.changePage", function(e){
+       e.preventDefault();
+       pageNum = $(this).attr("href");
+       showList(pageNum);
+    });
+
+    $(".finish").on("click", function(e){
+        e.preventDefault();
+
+        const replyWriter = $("input[name='replyWriter']").val();
+        const replyContent = $("textarea[name='replyContent']").val();
+
+        if(!replyWriter || !replyContent){
+            alert("내용을 입력해주세요.");
+            return;
+        }
+
+        replyService.add({
+            boardNumber: boardNumber,
+            replyContent: replyContent,
+            replyWriter: replyWriter
+
+        }, function(result){
+            $("input[name='replyWriter']").val("");
+            $("textarea[name='replyContent']").val("");
+            pageNum = 1;
+            showList(pageNum);
+            $(".register").show();
+            $(".register-form").hide();
+        });
+    });
+
+    let contentOriginal = "";
+    let modifyCheck = false;
+    //이벤트 위임
+    //이미 작성되어 있는 HTML 요소에 이벤트를 먼저 걸어준 뒤
+    //DOM으로 추가될 자식 요소에 이벤트를 전달해주는 방식이다.
+    //DOM으로 추가된 태그는 이벤트 보다 늦게 실행되기 때문이다.
+    $("ul.replies").on("click", "div.btns a.modify", function(e){
+        e.preventDefault();
+        if(modifyCheck){
+            alert("이미 수정중인 댓글이 있습니다.");
+            return;
+        }
+        modifyCheck = true;
+        let str = "";
+        let replyNumber = this.classList[1];
+        contentOriginal = $("p." + replyNumber).text();
+
+        console.log($("a." + replyNumber));
+        $("a." + replyNumber).show();
+        $(this).hide();
+        $(this).next().hide();
+
+        str += "<textarea class='" + replyNumber + "' style='resize: none'>";
+        str += $("p." + replyNumber).text();
+        str += "</textarea>";
+
+        $("p." + replyNumber).replaceWith(str);
+        $("textarea." + replyNumber).css("width", "70%");
+    });
+
+    $("ul.replies").on("click", "div.btns a.cancel", function(e){
+        e.preventDefault();
+        modifyCheck = false;
+        let str = "";
+        let replyNumber = this.classList[1];
+
+        $("a." + replyNumber).show();
+        $(this).hide();
+        $(this).prev().hide();
+
+        str += "<p class='" + replyNumber + "'>";
+        str += contentOriginal;
+        str += "</p>";
+
+        $("textarea." + replyNumber).replaceWith(str);
+    });
+
+    $("ul.replies").on("click", "div.btns a.remove", function(e){
+        replyService.remove(this.classList[1], function(result){
+            showList(pageNum);
+        });
+    });
+
+    $("ul.replies").on("click", "div.btns a.modifyOk", function(e){
+        let replyNumber = this.classList[1];
+        replyService.modify({
+            replyNumber: replyNumber,
+            replyContent: $("textarea." + replyNumber).val()
+        }, function(result){
+            showList(pageNum);
+            modifyCheck = false;
+        });
+    });
+
+    $(".register").on("click", function(e){
+        e.preventDefault();
+        $(this).hide();
+        $(".register-form").show();
+    });
+
+    $(".cancel").on("click", function(e){
+        e.preventDefault();
+        $(".register").show();
+        $(".register-form").hide();
+    });
+
+
+    // replyService.add({
+    //     boardNumber: boardNumber,
+    //     replyContent: "JS TEST",
+    //     replyWriter: "tester"
+    // }, function(result){alert(result);})
+
+    // replyService.getList({
+    //     boardNumber: boardNumber
+    // }, function(list){
+    //     console.log(list);
+    // });
+
+    // replyService.read(26, function(reply){console.log(reply);})
+
+    // replyService.remove(24, function(result){alert(result);});
+
+    // replyService.modify({
+    //     replyNumber: 26,
+    //     replyContent: "JS MODIFIED",
+    // }, function(result){alert(result);});
+
+    function goUpdate(){
+        location.href = "/board/modify" + params + "&boardNumber=" + boardNumber;
+    }
+
+    $("a#goList").click(function(e){
+        e.preventDefault();
+        location.href = "/board/list" + params;
+    })
+</script>
+</html>
